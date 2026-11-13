@@ -20,6 +20,7 @@ const binding = @import("binding.zig");
 const Output = @import("output.zig");
 const Window = @import("window.zig");
 const Context = @import("context.zig");
+const Scratchpad = @import("scratchpad.zig");
 const ShellSurface = @import("shell_surface.zig");
 
 const ctx = Context.get();
@@ -661,6 +662,9 @@ fn handle_actions(self: *Self) void {
                 if (ctx.focused_window()) |window| {
                     window.toggle_sticky();
                 }
+            },
+            .toggle_scratchpad => |data| {
+                Scratchpad.toggle(&data);
             },
             .toggle_swallow => {
                 if (ctx.focused_window()) |window| {

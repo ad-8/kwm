@@ -17,6 +17,7 @@ const Seat = @import("seat.zig");
 const Output = @import("output.zig");
 const Context = @import("context.zig");
 const CustomBorder = @import("custom_border.zig");
+const Scratchpad = @import("scratchpad.zig");
 
 pub const Decoration = enum {
     csd,
@@ -84,6 +85,8 @@ fullscreen: union(enum) {
 maximize: bool = false,
 floating: bool = false,
 sticky: bool = false,
+// hidden by the scratchpad module; overrides sticky and tags
+scratchpad_hidden: bool = false,
 hidden: bool = false,
 clip_state: enum {
     unknow,
@@ -527,17 +530,13 @@ pub fn managed_by_layout(self: *const Self) bool {
 
 
 pub fn is_visible(self: *Self) bool {
-    if (self.output) |output| {
-        return (
-            self.sticky or
-            (self.tag & output.tag) != 0
-        ) and self.swallowed_by == null;
-    }
-    return false;
+    const output = self.output orelse return false;
+    return self.is_visible_in(output);
 }
 
 
 pub fn is_visible_in(self: *Self, output: *Output) bool {
+    if (self.scratchpad_hidden) return false;
     if (self.output == null) return false;
 
     if (self.output.? != output) return false;
@@ -582,6 +581,7 @@ pub fn handle_events(self: *Self) void {
                 }
 
                 self.apply_rules();
+                Scratchpad.on_new_window(self);
 
                 switch (self.decoration_hint) {
                     .only_supports_csd => self.decoration = .csd,

@@ -25,6 +25,7 @@ const Output = @import("output.zig");
 const Window = @import("window.zig");
 const KeyRepeat = @import("key_repeat.zig");
 const ShellSurface = @import("shell_surface.zig");
+const Scratchpad = @import("scratchpad.zig");
 
 const TimerTask = struct {
     time: Io.Timestamp,
@@ -219,6 +220,7 @@ pub fn deinit() void {
     }
 
     ctx.timer_tasks.deinit(ctx.gpa);
+    Scratchpad.deinit();
 
     // first destroy windows for it's destroy function may depends on others
     {
@@ -1169,7 +1171,7 @@ fn prepare_manage(self: *Self) void {
             };
             var window_it = self.windows.safeIterator(.forward);
             while (window_it.next()) |window| {
-                if (window.sticky or window.tag & output.tag != 0) {
+                if (!window.scratchpad_hidden and (window.sticky or window.tag & output.tag != 0)) {
                     window.set_output(output, false);
                 }
             }

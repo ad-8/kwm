@@ -7,6 +7,7 @@ const layout = @import("layout.zig");
 const Window = @import("window.zig");
 const Output = @import("output.zig");
 const Context = @import("context.zig");
+const Scratchpad = @import("scratchpad.zig");
 pub const XkbBinding = @import("binding/xkb_binding.zig");
 pub const PointerBinding = @import("binding/pointer_binding.zig");
 
@@ -121,6 +122,7 @@ pub const Action = union(enum) {
     switch_to_previous_tag,
     toggle_floating,
     toggle_sticky,
+    toggle_scratchpad: Scratchpad.Spec,
     toggle_swallow,
     zoom: struct { swap: bool },
     focus_master_return,
