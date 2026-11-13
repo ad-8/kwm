@@ -49,6 +49,10 @@ init_env: *const process.Environ,
 config_path: []const u8,
 cfg: config.Config = undefined,
 config_arena: heap.ArenaAllocator,
+// older config arena kept alive while reloads leave the bindings unchanged:
+// cfg.bindings and the seats' bindings (not rebuilt then) may point into it;
+// freed when a reload changes the bindings
+bindings_arena: ?heap.ArenaAllocator = null,
 
 wl_registry: *wl.Registry,
 wl_compositor: *wl.Compositor,
@@ -273,6 +277,7 @@ pub fn deinit() void {
     ctx.startup_processes.deinit(ctx.gpa);
 
     ctx.config_arena.deinit();
+    if (ctx.bindings_arena) |*arena| arena.deinit();
 }
 
 
@@ -310,6 +315,7 @@ pub fn run_timer_tasks(self: *Self) void {
 pub fn reload_config(self: *Self) void {
     log.info("reloading config", .{});
 
+    const old_bindings = self.cfg.bindings;
     var arena = heap.ArenaAllocator.init(self.gpa);
     const mask = config.reload(
         .{ .gpa = self.gpa, .arena = arena.allocator(), .io = self.io, .env = &self.env },
@@ -320,7 +326,20 @@ pub fn reload_config(self: *Self) void {
         arena.deinit();
         return;
     };
-    self.config_arena.deinit();
+    if (mask.bindings) {
+        self.config_arena.deinit();
+        if (self.bindings_arena) |*old| old.deinit();
+        self.bindings_arena = null;
+    } else {
+        // equal to the new ones; keep the copy the seats' bindings use, so
+        // seats created later build from the same arena
+        self.cfg.bindings = old_bindings;
+        if (self.bindings_arena == null) {
+            self.bindings_arena = self.config_arena;
+        } else {
+            self.config_arena.deinit();
+        }
+    }
     self.config_arena = arena;
 
     log.debug("mask: {any}", .{ mask });
